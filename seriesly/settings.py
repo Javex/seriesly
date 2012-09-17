@@ -30,9 +30,7 @@ ROOT_URLCONF = 'urls'
 
 DEFAULT_FROM_EMAIL = 'mail@seriesly.com'
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
-
-ADMIN_NAME = "Stefan Wehrmeyer"
-
+    
 DOMAIN_URL = "https://serieslycom.appspot.com"
 SECURE_DOMAIN_URL = "https://serieslycom.appspot.com"
 
@@ -77,6 +75,8 @@ TEMPLATE_DIRS = (
     # Don't forget to use absolute paths, not relative paths.
     ROOT_PATH + '/templates',
 )
+
+TVDB_APIKEY='CB41CECB38BE8D23'
 
 try:
     from local_settings import *

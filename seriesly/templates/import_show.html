@@ -1,29 +1,36 @@
 {% extends "base.html" %}
 
-{% block title %}Import Shows - Seriesly!{% endblock %}
+{% block title %}Seriesly Import Show Page - Seriesly!{% endblock %}
 
 {% block body %}
+
+{% include "announcement.html" %}
+
 <section class="step">
-  <h3>Importing Shows</h3>
-  {% if logged_in %}
-  {% if status %}
-  <p>{{ status }}</p>
-  {% endif %}
-  <p>Logged in as {{ nick }}. <a href="{{ logout_url }}">Logout</a></p>
-  <p><a target="_blank" href="http://services.tvrage.com/feeds/search.php?show=">Search for shows on TVRage</a>
-    and enter TV Rage IDs comma separated below:</p>
-  <form action="." method="post">
-      <textarea cols="50" rows="5" name="show"></textarea><br/>
-      <input type="submit" value="Import these shows!"/>
-  </form>
-  {% else %}
-    {% if nick %}
-      <p>{{ nick }} is not an administrator account!<br/>
-        <a href="{{ logout_url }}">Logout</a></p>
-    {% else %}
-      <p>Please login with an administrator account!<br/>
-        <a href="{{ login_url }}">Login</a></p>
-    {% endif %}
-  {% endif %}
+<h3>Welcome {{name}}!</h3>
+<p>Some description...</p>
+<p><a href="{{logout_url}}">Logout</a></p>
 </section>
-{% endblock body %}
+
+<section class="step">
+    <h3>Search Show</h3>
+    <form method="post" action=".">
+        <label>Enter Show Name here:</label>
+        <input type="text" placeholder="Show name..." name="search_name" value="{{search_name}}" />
+        <input type="submit" name="search_show" value="Search!" />
+    </form>
+    {% if show %}
+    <p>I found {{show.name}} with Show ID {{show.tvrage_id}} for you!</p>
+    {% endif %}
+</section>
+
+<section class="step">
+    <h3>Add Show By ID</h3>
+    <form method="post" action=".">
+        <label>Enter TV Rage ID:</label>
+        <input type="text" placeholder="1234" name="show" />
+        <input type="submit" name="add_show" value="Submit Query" />
+    </form>
+</section>
+{% endblock %}
+{% block extra_js %}{% endblock  %}

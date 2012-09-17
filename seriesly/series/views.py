@@ -1,65 +1,58 @@
 import logging
 
 from google.appengine.api import users
-from google.appengine.api import taskqueue
 
 from django.http import HttpResponse,HttpResponseRedirect,Http404
-from django.shortcuts import render_to_response
-from django.template import RequestContext
 from django.core.urlresolvers import reverse
 from django.conf import settings
 
 from helper import is_get, is_post
 from series.models import Show, Episode
+from django.shortcuts import render_to_response
+from django.template.context import RequestContext
+from series.tvrage import TVRage
 
 
 def import_shows(request):
+    from series_list import series_list
+    show_names = series_list.split("\n")
+    Show.clear_cache()
+    for show_name in show_names:
+        Show.update_or_create(show_name)
+    Show.clear_cache()
+    return HttpResponse("Done")
+    
+def import_show(request):
     this_url = reverse("seriesly-shows-import_show")
     user = users.get_current_user()
-    status = request.GET.get("status", None)
-    if status is not None:
-        status = "Shows are now being imported."
-    nick = False
+    nick = "Anonymous"
     if user:
         nick = user.nickname()
-    if user and user.email() in settings.ADMIN_USERS:
-        if request.method == "GET":
-            return render_to_response("import_show.html", RequestContext(request,
-                {"logged_in": True,
-                    "nick": nick,
-                    "status": status,
-                    "logout_url": users.create_logout_url(this_url)}))
+    if not user or user.email() not in settings.ADMIN_USERS:
+        return HttpResponse("""Hi %s,<a href=\"%s\">Sign in</a>.""" % (nick, users.create_login_url(this_url)))
+        #return HttpResponse("""Hi %s,<br/>
+        #    <a href="http://services.tvrage.com/feeds/search.php?show=">Search for shows on TVRage</a><br/>
+        #    Enter TV Rage ID: <form action="." method="post">
+        #    <input type="text" name="show"/><input type="submit"/></form><a href="%s">Logout</a>""" % (nick, users.create_logout_url(this_url)))
+    name = request.POST.get("show", None)
+    if name:
+        if name.startswith("!"):
+            Show.update_or_create(name[1:])
         else:
-            shows = request.POST["show"]
-            try:
-                shows = [int(s.strip()) for s in shows.split(",")]
-            except ValueError:
-                return HttpResponse("Error: there was an invalid ID", status=400)
-            for show in shows:
-                t = taskqueue.Task(url=reverse('seriesly-shows-import'),
-                        params={"show": str(show)})
-                t.add(queue_name='series')
-            return HttpResponseRedirect(this_url+"?status=Done")
-    else:
-        return render_to_response("import_show.html", RequestContext(request,
-            {"logged_in": False, "nick": nick, "login_url": users.create_login_url(this_url),
-            "logout_url": users.create_logout_url(this_url)}))
-
-@is_post
-def import_show_task(request):
-    show_id = None
-    try:
-        show_id = request.POST.get("show", None)
-        if show_id is None:
-            raise Http404
-        Show.update_or_create(None, int(show_id))
-    except Http404:
-        raise Http404
-    except Exception, e:
-        logging.error("Error Importing Show %s: %s" % (show_id, e))
-        return HttpResponse("Done (with errors, %s))" % (show_id))
-    logging.debug("Done importing show %s" % (show_id))
-    return HttpResponse("Done: %s" % (show_id))
+            show_id = int(name)
+            Show.update_or_create(None, show_id)
+        Show.clear_cache()
+        Episode.clear_cache()
+        return HttpResponseRedirect(this_url+"?status=Done")
+    
+    show = None
+    if request.POST.get("search_name", None):
+        show = search_show(request)
+        
+        
+    return render_to_response("import_show.html", RequestContext(request, 
+                 {'name' : nick, 'logout_url' : users.create_logout_url(this_url), 'show' : show, 'search_name' : request.POST.get("search_name", None)}))
+        
 
 def update(request):
     shows = Show.get_all_ordered()
@@ -104,3 +97,16 @@ def redirect_to_amazon(request, show_id):
     if not show.amazon_url:
         raise Http404
     return HttpResponseRedirect(show.amazon_url)
+
+@is_post
+def search_show(request):
+    show_name = request.POST.get('search_name', "")
+    if not show_name:
+        return None
+    
+    tvrage = TVRage()
+    show = tvrage.get_info_by_name(show_name)
+    if not show:
+        return None
+    return show
+    
